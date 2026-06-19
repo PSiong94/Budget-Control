@@ -132,6 +132,7 @@ const SAVING_KEY = "budget-saving-v4";
 const PAYMENT_KEY = "budget-payment-v4";
 const EXTRA_KEY = "budget-extra-v4"; // { "category:currency:YYYY-MM": "12.50" }
 const EXTRA_LOAN_ITEMS_KEY = "budget-extra-loan-items-v4"; // [{ id, bank, label, currency, amount, month }]
+const SALARY_BUDGET_KEY = "budget-salary-budget-v4"; // { "YYYY-MM": { sgdSalary, sgdBudget, myrSalary, myrBudget } }
 
 export default function BudgetTracker() {
   const [page, setPage] = useState("home");
@@ -145,10 +146,7 @@ export default function BudgetTracker() {
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState("idle");
 
-  const [sgdSalary, setSgdSalary] = useState("");
-  const [sgdBudget, setSgdBudget] = useState("");
-  const [myrSalary, setMyrSalary] = useState("");
-  const [myrBudget, setMyrBudget] = useState("");
+  const [salaryBudgetByMonth, setSalaryBudgetByMonth] = useState({}); // { "YYYY-MM": { sgdSalary, sgdBudget, myrSalary, myrBudget } }
 
   // Ensure safe-area-inset-* values are populated (needed for the dynamic island / home indicator padding)
   useEffect(() => {
@@ -189,6 +187,10 @@ export default function BudgetTracker() {
         const eli = await localStore.get(EXTRA_LOAN_ITEMS_KEY);
         if (eli && eli.value) setExtraLoanItems(JSON.parse(eli.value));
       } catch (e) {}
+      try {
+        const sb = await localStore.get(SALARY_BUDGET_KEY);
+        if (sb && sb.value) setSalaryBudgetByMonth(JSON.parse(sb.value));
+      } catch (e) {}
       setLoaded(true);
     })();
   }, []);
@@ -224,6 +226,11 @@ export default function BudgetTracker() {
     if (!loaded) return;
     return persist(PAYMENT_KEY, paymentItems);
   }, [paymentItems, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    return persist(SALARY_BUDGET_KEY, salaryBudgetByMonth);
+  }, [salaryBudgetByMonth, loaded]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -321,6 +328,23 @@ export default function BudgetTracker() {
   const myrPaid = sumPaid(myrAllBills, activeMonth);
   const myrTotal = sumTotal(myrAllBills);
   const myrRemaining = Math.max(0, myrTotal - myrPaid);
+
+  const currentMonthSB = salaryBudgetByMonth[activeMonth] || {};
+  const sgdSalary = currentMonthSB.sgdSalary || "";
+  const sgdBudget = currentMonthSB.sgdBudget || "";
+  const myrSalary = currentMonthSB.myrSalary || "";
+  const myrBudget = currentMonthSB.myrBudget || "";
+
+  const setSalaryBudgetField = (field, value) => {
+    setSalaryBudgetByMonth((prev) => ({
+      ...prev,
+      [activeMonth]: { ...(prev[activeMonth] || {}), [field]: value },
+    }));
+  };
+  const setSgdSalary = (v) => setSalaryBudgetField("sgdSalary", v);
+  const setSgdBudget = (v) => setSalaryBudgetField("sgdBudget", v);
+  const setMyrSalary = (v) => setSalaryBudgetField("myrSalary", v);
+  const setMyrBudget = (v) => setSalaryBudgetField("myrBudget", v);
 
   const sgdSalaryNum = parseFloat(sgdSalary) || 0;
   const sgdBudgetNum = parseFloat(sgdBudget) || 0;
